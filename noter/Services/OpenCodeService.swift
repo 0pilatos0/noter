@@ -72,6 +72,7 @@ class OpenCodeService {
         - Use bold (**text**) sparingly for emphasis
         - Add relevant tags using #tag format where appropriate
         - Add internal links using [[Note Name]] syntax for related concepts, people, or projects
+        - Before creating a new link, check if a similar link already exists under a slightly different name (e.g., [[Meeting Notes]] vs [[Meetings]], [[John Smith]] vs [[John]])
         - Creating new links is encouraged even if the target page doesn't exist yet
         
         ### Output
