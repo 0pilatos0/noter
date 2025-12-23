@@ -48,9 +48,13 @@ struct MenuBarView: View {
                         }
                         .padding(18)
                     } else {
-                        if selectedTab == .note, let directory = StorageManager.loadSettings().vaultDirectory {
-                            let settings = StorageManager.loadSettings()
-                            NoteInputView(vaultDirectory: directory, opencodePath: settings.opencodePath)
+                        let settings = StorageManager.loadSettings()
+                        if selectedTab == .note, let directory = settings.vaultDirectory {
+                            NoteInputView(
+                                vaultDirectory: directory,
+                                opencodePath: settings.opencodePath,
+                                model: settings.model
+                            )
                         } else if selectedTab == .settings {
                             SettingsView()
                         }

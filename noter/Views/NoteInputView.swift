@@ -9,11 +9,13 @@ struct NoteInputView: View {
     @State private var errorMessage: String = ""
     @State private var showOutput: Bool = false
     @State private var hasOutput: Bool = false
+    @State private var currentOperationHandle: NoteOperationHandle?
     
     @FocusState private var isTextEditorFocused: Bool
     
     let vaultDirectory: URL
     let opencodePath: String
+    let model: String
     
     var body: some View {
         VStack(spacing: 16) {
@@ -70,14 +72,33 @@ struct NoteInputView: View {
                     
                     Spacer()
                     
-                    // Keyboard shortcut hint
-                    Text("⌘↵")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .foregroundStyle(.tertiary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
+                    // Cancel button (shown when loading)
+                    if isLoading {
+                        Button(action: cancelNote) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 12))
+                                Text("Cancel")
+                                    .font(.system(size: 11, weight: .medium))
+                            }
+                            .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
                         .background(Color.primary.opacity(0.05))
                         .cornerRadius(4)
+                        .keyboardShortcut(.escape, modifiers: [])
+                    } else {
+                        // Keyboard shortcut hint
+                        Text("⌘↵")
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .foregroundStyle(.tertiary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.primary.opacity(0.05))
+                            .cornerRadius(4)
+                    }
                     
                     // Send button
                     Button(action: addNote) {
@@ -147,6 +168,19 @@ struct NoteInputView: View {
         }
     }
     
+    private func cancelNote() {
+        currentOperationHandle?.cancel()
+        currentOperationHandle = nil
+        isLoading = false
+        
+        outputText += "\n\n[Cancelled]"
+        
+        withAnimation(.easeInOut(duration: 0.2)) {
+            showError = false
+            showSuccess = false
+        }
+    }
+    
     private func addNote() {
         guard !noteText.isEmpty else { return }
         
@@ -159,11 +193,14 @@ struct NoteInputView: View {
         let noteToAdd = noteText
         
         Task {
-            let (stream, _) = OpenCodeService.addNoteStreaming(
+            let (stream, handle, _) = OpenCodeService.addNoteStreaming(
                 noteToAdd,
                 in: vaultDirectory,
-                opencodePath: opencodePath
+                opencodePath: opencodePath,
+                model: model
             )
+            
+            currentOperationHandle = handle
             
             do {
                 // Stream chunks as they arrive
@@ -187,6 +224,8 @@ struct NoteInputView: View {
                 }
                 noteText = ""
                 
+            } catch let error as OpenCodeService.OpenCodeError where error == .cancelled {
+                // Cancelled - don't show error, already handled in cancelNote()
             } catch {
                 outputText += "\n\nError: \(error.localizedDescription)"
                 hasOutput = true
@@ -204,6 +243,7 @@ struct NoteInputView: View {
                 }
             }
             
+            currentOperationHandle = nil
             isLoading = false
         }
     }
@@ -307,5 +347,21 @@ struct OutputPanel: View {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(Color.primary.opacity(0.06), lineWidth: 1)
         )
+    }
+}
+
+// Extension for comparing OpenCodeError
+extension OpenCodeService.OpenCodeError: Equatable {
+    static func == (lhs: OpenCodeService.OpenCodeError, rhs: OpenCodeService.OpenCodeError) -> Bool {
+        switch (lhs, rhs) {
+        case (.cancelled, .cancelled):
+            return true
+        case (.executionFailed(let a), .executionFailed(let b)):
+            return a == b
+        case (.pathNotFound(let a), .pathNotFound(let b)):
+            return a == b
+        default:
+            return false
+        }
     }
 }

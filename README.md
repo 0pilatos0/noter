@@ -11,14 +11,18 @@ A macOS menu bar app for quickly adding notes to your Obsidian vault using OpenC
 - **Quick Note Capture** - Instantly add notes to today's daily Obsidian note
 - **AI-Powered** - Uses OpenCode to intelligently format and integrate your notes
 - **Menu Bar Convenience** - Always accessible from your macOS menu bar
-- **Configurable** - Set your Obsidian vault directory and OpenCode path
-- **Fast Model** - Uses `opencode/big-pickle` model for quick responses
+- **Configurable** - Set your Obsidian vault directory, OpenCode path, and AI model
+- **Model Selection** - Choose from preset models or use a custom model identifier
+- **Vault Validation** - Automatically detects valid Obsidian vaults (checks for `.obsidian` folder)
+- **Cancellable Operations** - Cancel note submissions in progress with Escape key
 - **Clean macOS Design** - Native-looking interface following Apple's Human Interface Guidelines
 - **Expandable Output** - View OpenCode's thinking and response with collapsible panel
 - **Text Selection** - Copy output easily with text selection
-- **Keyboard Shortcuts** - Press `Cmd + Enter` to quickly submit notes
+- **Keyboard Shortcuts** - Press `Cmd + Enter` to submit, `Escape` to cancel
 - **Right-Click Quit** - Right-click the menu bar icon to quit the app
 - **Dark/Light Mode** - Adapts automatically to your system appearance
+- **Launch at Login** - Optionally start Noter when you log in
+- **Settings Feedback** - Visual confirmation when settings are saved
 
 ## Installation
 
@@ -55,15 +59,21 @@ When you first launch Noter, you'll see an empty state prompting you to configur
 
 1. **Click the "Settings" tab** in the popover
 2. **Select Obsidian Vault**:
-   - Click "Select Directory"
+   - Click "Select" or "Change"
    - Navigate to your Obsidian vault folder
    - Click "Open"
-   - The path will display with a green "Configured" badge
+   - A green "Valid" badge confirms it's an Obsidian vault (has `.obsidian` folder)
+   - An orange "No .obsidian" warning appears if it's not a valid vault (you can still use it)
 3. **Configure OpenCode Path** (optional):
    - Default: `/usr/local/bin/opencode`
    - If installed elsewhere, edit the path
    - A green "Found" badge confirms OpenCode is accessible
-4. **Important**: Ensure your vault contains a `claude.md` file with instructions for OpenCode to understand your daily note format
+4. **Select AI Model**:
+   - Choose from preset models (opencode/big-pickle, Claude, GPT-4o, etc.)
+   - Or select "Custom..." and enter any model identifier
+5. **Launch at Login** (optional):
+   - Toggle to start Noter automatically when you log in
+6. **Important**: Ensure your vault contains a `claude.md` file with instructions for OpenCode to understand your daily note format
 
 ### Example claude.md
 
@@ -118,6 +128,7 @@ Right-click the menu bar icon for quick access to:
 | Shortcut | Action |
 |----------|--------|
 | `Cmd + Enter` | Submit note |
+| `Escape` | Cancel in-progress submission |
 | `Cmd + ,` | Open/close popover (via menu bar) |
 
 ## Architecture
@@ -125,24 +136,25 @@ Right-click the menu bar icon for quick access to:
 ```
 noter/
 ├── Models/
-│   └── AppSettings.swift           # User settings model
+│   └── AppSettings.swift           # User settings model + vault validation
 ├── Services/
 │   ├── MenuBarManager.swift        # Menu bar + popover management
-│   ├── OpenCodeService.swift      # OpenCode process execution
-│   └── StorageManager.swift        # UserDefaults persistence
+│   ├── OpenCodeService.swift       # OpenCode process execution with cancellation
+│   └── StorageManager.swift        # UserDefaults persistence with error handling
 ├── Views/
 │   ├── MenuBarView.swift           # Main container with tab navigation
-│   ├── NoteInputView.swift         # Note input + output panel
-│   └── SettingsView.swift          # Configuration UI
-├── Assets.xcassets/              # Images and colors
+│   ├── NoteInputView.swift         # Note input + output panel + cancel support
+│   └── SettingsView.swift          # Configuration UI with model selection
+├── Assets.xcassets/                # Images and colors
 ├── noter.entitlements              # Sandbox permissions
-└── noterApp.swift                 # App entry point
+└── noterApp.swift                  # App entry point
 ```
 
 ## Troubleshooting
 
 ### App not responding during note submission
 
+- **Cancel button available** - Click "Cancel" or press Escape to stop a long-running operation
 - **Sandbox disabled** - The app runs without sandbox to execute OpenCode
 - Ensure OpenCode is installed at the configured path
 - Check that your Obsidian vault path is accessible
@@ -166,9 +178,16 @@ noter/
 
 ### Settings not persisting
 
+- Settings now show a confirmation banner when saved
 - Check if the app has write permissions
 - The app uses UserDefaults which should work without issues
 - Try resetting: Delete UserDefaults for `pilatos.noter`
+
+### Launch at Login not working
+
+- Ensure the app is properly signed
+- Check System Preferences > Login Items
+- The app will show an error if it fails to register
 
 ## Security
 
@@ -237,7 +256,7 @@ This project is open source and available under the [MIT License](LICENSE).
 ## Roadmap
 
 - [ ] Window mode toggle - Open in resizable window for more space
-- [ ] Custom OpenCode model selection
+- [x] Custom OpenCode model selection
 - [ ] Note history - View and re-use recent notes
 - [ ] Multiple vaults - Switch between different Obsidian vaults
 - [ ] Note templates - Predefined note formats
@@ -258,7 +277,7 @@ A: Quit the app, then delete the app bundle from your Applications folder.
 A: Yes, all your data stays in your Obsidian vault. Noter only reads/writes your notes.
 
 **Q: Can I use multiple OpenCode models?**
-A: Currently, the app uses `opencode/big-pickle`. Custom model selection is planned for future releases.
+A: Yes! Go to Settings and select from preset models or enter a custom model identifier.
 
 ## Contact
 

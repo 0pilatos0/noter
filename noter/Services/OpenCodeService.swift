@@ -6,13 +6,31 @@ struct StreamResult {
     let error: String?
 }
 
+/// Handle for cancelling an in-progress note operation
+class NoteOperationHandle {
+    private let process: Process
+    private(set) var isCancelled = false
+    
+    init(process: Process) {
+        self.process = process
+    }
+    
+    func cancel() {
+        guard process.isRunning else { return }
+        isCancelled = true
+        process.terminate()
+    }
+}
+
 class OpenCodeService {
     /// Adds a note with streaming output - yields chunks as they arrive from opencode
+    /// Returns a stream, a cancel handle, and a function to get the final result
     static func addNoteStreaming(
         _ note: String,
         in directory: URL,
-        opencodePath: String = "/usr/local/bin/opencode"
-    ) -> (stream: AsyncThrowingStream<String, Error>, getResult: () async throws -> StreamResult) {
+        opencodePath: String = "/usr/local/bin/opencode",
+        model: String = "opencode/big-pickle"
+    ) -> (stream: AsyncThrowingStream<String, Error>, handle: NoteOperationHandle, getResult: () async throws -> StreamResult) {
         let currentDate = DateFormatter.noteDateFormatter.string(from: Date())
         let currentTime = DateFormatter.noteTimeFormatter.string(from: Date())
         
@@ -44,11 +62,13 @@ class OpenCodeService {
         let errorPipe = Pipe()
         
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/bash")
-        process.arguments = ["-c", "\(opencodePath) run --model opencode/big-pickle \"\(prompt)\""]
+        process.executableURL = URL(fileURLWithPath: opencodePath)
+        process.arguments = ["run", "--model", model, prompt]
         process.currentDirectoryURL = directory
         process.standardOutput = outputPipe
         process.standardError = errorPipe
+        
+        let handle = NoteOperationHandle(process: process)
         
         // Accumulated data for final result
         var accumulatedOutput = ""
@@ -60,8 +80,8 @@ class OpenCodeService {
         
         let stream = AsyncThrowingStream<String, Error> { continuation in
             // Set up stdout streaming
-            outputPipe.fileHandleForReading.readabilityHandler = { handle in
-                let data = handle.availableData
+            outputPipe.fileHandleForReading.readabilityHandler = { fileHandle in
+                let data = fileHandle.availableData
                 if data.isEmpty {
                     // EOF reached
                     outputPipe.fileHandleForReading.readabilityHandler = nil
@@ -72,8 +92,8 @@ class OpenCodeService {
             }
             
             // Collect stderr (not streamed, just accumulated)
-            errorPipe.fileHandleForReading.readabilityHandler = { handle in
-                let data = handle.availableData
+            errorPipe.fileHandleForReading.readabilityHandler = { fileHandle in
+                let data = fileHandle.availableData
                 if data.isEmpty {
                     errorPipe.fileHandleForReading.readabilityHandler = nil
                 } else if let chunk = String(data: data, encoding: .utf8) {
@@ -99,7 +119,13 @@ class OpenCodeService {
                     accumulatedError += chunk
                 }
                 
-                if proc.terminationStatus != 0 {
+                // Check if cancelled
+                if handle.isCancelled {
+                    let error = OpenCodeError.cancelled
+                    streamError = error
+                    continuation.finish(throwing: error)
+                    resultContinuation?.resume(throwing: error)
+                } else if proc.terminationStatus != 0 {
                     let error = OpenCodeError.executionFailed(accumulatedError)
                     streamError = error
                     continuation.finish(throwing: error)
@@ -135,7 +161,7 @@ class OpenCodeService {
             }
         }
         
-        return (stream, getResult)
+        return (stream, handle, getResult)
     }
     
     static func checkOpencodeInstalled(at path: String) -> Bool {
@@ -145,6 +171,7 @@ class OpenCodeService {
     enum OpenCodeError: LocalizedError {
         case executionFailed(String)
         case pathNotFound(String)
+        case cancelled
         
         var errorDescription: String? {
             switch self {
@@ -152,6 +179,8 @@ class OpenCodeService {
                 return "Opencode execution failed: \(message)"
             case .pathNotFound(let path):
                 return "File not found: \(path)"
+            case .cancelled:
+                return "Operation cancelled"
             }
         }
     }
