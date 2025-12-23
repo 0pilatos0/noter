@@ -48,13 +48,13 @@ class OpenCodeService {
         - Keep the original meaning and intent intact
         - Use active voice and short, concise sentences
         - Be concise but complete
+        - Do NOT add timestamps unless the user explicitly mentions a time or asks for one
         
         ### Grouping & Organization
         - Check if the daily note already has a relevant section for this content (e.g., "Tasks", "Meetings", "Ideas", "Notes")
         - If a relevant section exists, add the note there instead of appending to the end
         - Group related items together: tasks with tasks, meeting notes with meetings, ideas with ideas
         - If adding multiple items, keep them together under the appropriate section
-        - Maintain chronological order within sections when timestamps are present
         - If no relevant section exists and the note doesn't fit existing sections, append to the end
         
         ### Markdown Structure
