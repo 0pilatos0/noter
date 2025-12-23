@@ -40,22 +40,43 @@ class OpenCodeService {
         The user's raw input is:
         \(note)
         
-        Instructions:
+        ## Instructions
+        
+        ### Content Processing
         - Refine and format the note following the conventions in claude.md
         - Fix any typos, grammar issues, or unclear phrasing
         - Keep the original meaning and intent intact
         - Use active voice and short, concise sentences
-        - Use appropriate formatting based on content type:
-          - `- [ ]` for action items and tasks
-          - Bullet points for lists
-          - Bold (**text**) sparingly for emphasis
+        - Be concise but complete
+        
+        ### Grouping & Organization
+        - Check if the daily note already has a relevant section for this content (e.g., "Tasks", "Meetings", "Ideas", "Notes")
+        - If a relevant section exists, add the note there instead of appending to the end
+        - Group related items together: tasks with tasks, meeting notes with meetings, ideas with ideas
+        - If adding multiple items, keep them together under the appropriate section
+        - Maintain chronological order within sections when timestamps are present
+        - If no relevant section exists and the note doesn't fit existing sections, append to the end
+        
+        ### Markdown Structure
+        - Preserve the existing markdown structure of the daily note
+        - Do not create duplicate headings - use existing ones
+        - Maintain consistent heading hierarchy (## for main sections, ### for subsections)
+        - Ensure proper spacing: one blank line before headings, no trailing whitespace
+        - Keep list indentation consistent with the rest of the document
+        - Do not leave orphaned or empty sections
+        
+        ### Formatting
+        - Use `- [ ]` for action items and tasks
+        - Use `- [x]` for completed tasks
+        - Use bullet points (`-`) for lists and notes
+        - Use bold (**text**) sparingly for emphasis
         - Add relevant tags using #tag format where appropriate
         - Add internal links using [[Note Name]] syntax for related concepts, people, or projects
         - Creating new links is encouraged even if the target page doesn't exist yet
-        - If it's a task completion, mark it appropriately
-        - If it's a blocker or issue, format it clearly
-        - Be concise but complete
+        
+        ### Output
         - Do not add unnecessary commentary, just add the refined note
+        - Do not repeat or summarize what you did - just make the changes
         """
         
         let outputPipe = Pipe()
