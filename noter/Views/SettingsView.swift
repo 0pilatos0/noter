@@ -1,10 +1,12 @@
 import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
+import ServiceManagement
 
 struct SettingsView: View {
     @State private var vaultDirectory: URL?
     @State private var opencodePath: String = ""
+    @State private var launchAtLogin: Bool = false
     @State private var showingFilePicker: Bool = false
     @State private var showValidationError: Bool = false
     
@@ -12,6 +14,7 @@ struct SettingsView: View {
         let settings = StorageManager.loadSettings()
         _vaultDirectory = State(initialValue: settings.vaultDirectory)
         _opencodePath = State(initialValue: settings.opencodePath)
+        _launchAtLogin = State(initialValue: AppSettings.isLaunchAtLoginEnabled)
     }
     
     var body: some View {
@@ -141,6 +144,32 @@ struct SettingsView: View {
                 .fill(Color.gray.opacity(0.3))
                 .frame(height: 1)
             
+            VStack(alignment: .leading, spacing: 12) {
+                Text("General")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.primary)
+                
+                Toggle(isOn: $launchAtLogin) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "power")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.secondary)
+                        Text("Launch at Login")
+                            .font(.system(size: 12))
+                    }
+                }
+                .toggleStyle(.switch)
+                .controlSize(.small)
+                .onChange(of: launchAtLogin) { _, newValue in
+                    AppSettings.syncLaunchAtLogin(newValue)
+                    saveSettings()
+                }
+            }
+            
+            Rectangle()
+                .fill(Color.gray.opacity(0.3))
+                .frame(height: 1)
+            
             HStack(spacing: 8) {
                 Image(systemName: "info.circle")
                     .font(.system(size: 12))
@@ -177,7 +206,8 @@ struct SettingsView: View {
     }
     
     private func saveSettings() {
-        let settings = AppSettings(vaultDirectory: vaultDirectory, opencodePath: opencodePath)
+        var settings = AppSettings(vaultDirectory: vaultDirectory, opencodePath: opencodePath)
+        settings.launchAtLogin = launchAtLogin
         StorageManager.saveSettings(settings)
     }
 }

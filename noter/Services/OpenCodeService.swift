@@ -3,7 +3,24 @@ import Foundation
 class OpenCodeService {
     static func addNote(_ note: String, in directory: URL, opencodePath: String = "/usr/local/bin/opencode") async throws -> String {
         let currentDate = DateFormatter.noteDateFormatter.string(from: Date())
-        let prompt = "Add this note to today's daily note (\(currentDate)): \(note)"
+        let currentTime = DateFormatter.noteTimeFormatter.string(from: Date())
+        
+        let prompt = """
+        Add this note to today's daily note (\(currentDate)). Current time: \(currentTime).
+        
+        The user's raw input is:
+        \(note)
+        
+        Instructions:
+        - Refine and format the note following the conventions in claude.md
+        - Fix any typos, grammar issues, or unclear phrasing
+        - Keep the original meaning and intent intact
+        - Use appropriate formatting (tasks, bullet points, headers) based on content type
+        - If it's a task completion, mark it appropriately
+        - If it's a blocker or issue, format it clearly
+        - Be concise but complete
+        - Do not add unnecessary commentary, just add the refined note
+        """
         
         let outputPipe = Pipe()
         let errorPipe = Pipe()
@@ -62,6 +79,12 @@ extension DateFormatter {
     static let noteDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+    
+    static let noteTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
         return formatter
     }()
 }
