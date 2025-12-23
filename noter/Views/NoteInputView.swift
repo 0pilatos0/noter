@@ -155,52 +155,56 @@ struct NoteInputView: View {
         showSuccess = false
         showError = false
         
-        Task.detached {
+        // Capture note text before async work
+        let noteToAdd = noteText
+        
+        Task {
+            let (stream, _) = OpenCodeService.addNoteStreaming(
+                noteToAdd,
+                in: vaultDirectory,
+                opencodePath: opencodePath
+            )
+            
             do {
-                let output = try await OpenCodeService.addNote(noteText, in: vaultDirectory, opencodePath: opencodePath)
-                
-                await MainActor.run {
-                    outputText = output
-                    hasOutput = true
-                    
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        showSuccess = true
+                // Stream chunks as they arrive
+                for try await chunk in stream {
+                    outputText += chunk
+                    if !hasOutput {
+                        hasOutput = true
                     }
+                }
+                
+                // Stream completed successfully
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showSuccess = true
                 }
                 
                 // Auto-dismiss success and clear text
                 try await Task.sleep(nanoseconds: 1_500_000_000)
                 
-                await MainActor.run {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        showSuccess = false
-                    }
-                    noteText = ""
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showSuccess = false
                 }
+                noteText = ""
+                
             } catch {
-                await MainActor.run {
-                    outputText = error.localizedDescription
-                    hasOutput = true
-                    errorMessage = error.localizedDescription
-                    
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        showError = true
-                    }
+                outputText += "\n\nError: \(error.localizedDescription)"
+                hasOutput = true
+                errorMessage = error.localizedDescription
+                
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showError = true
                 }
                 
                 // Auto-dismiss error after longer delay
                 try? await Task.sleep(nanoseconds: 4_000_000_000)
                 
-                await MainActor.run {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        showError = false
-                    }
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showError = false
                 }
             }
             
-            await MainActor.run {
-                isLoading = false
-            }
+            isLoading = false
         }
     }
 }
@@ -254,7 +258,7 @@ struct OutputPanel: View {
                     HStack(spacing: 4) {
                         ProgressView()
                             .controlSize(.mini)
-                        Text("Running...")
+                        Text("Streaming...")
                             .font(.system(size: 10))
                             .foregroundStyle(.secondary)
                     }
@@ -272,16 +276,29 @@ struct OutputPanel: View {
                 }
             }
             
-            // Output content
-            ScrollView {
-                Text(outputText.isEmpty ? "No output yet" : outputText)
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(outputText.isEmpty ? .tertiary : .secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .textSelection(.enabled)
-                    .lineSpacing(2)
+            // Output content with auto-scroll
+            ScrollViewReader { proxy in
+                ScrollView {
+                    Text(outputText.isEmpty ? "No output yet" : outputText)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(outputText.isEmpty ? .tertiary : .secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .textSelection(.enabled)
+                        .lineSpacing(2)
+                    
+                    // Invisible anchor at the bottom for auto-scrolling
+                    Color.clear
+                        .frame(height: 1)
+                        .id("bottom")
+                }
+                .frame(maxHeight: 120)
+                .onChange(of: outputText) { _, _ in
+                    // Auto-scroll to bottom when new content arrives
+                    withAnimation(.easeOut(duration: 0.1)) {
+                        proxy.scrollTo("bottom", anchor: .bottom)
+                    }
+                }
             }
-            .frame(maxHeight: 120)
         }
         .padding(12)
         .background(Color.primary.opacity(0.03))

@@ -1,7 +1,18 @@
 import Foundation
 
+/// Result of a streaming operation
+struct StreamResult {
+    let output: String
+    let error: String?
+}
+
 class OpenCodeService {
-    static func addNote(_ note: String, in directory: URL, opencodePath: String = "/usr/local/bin/opencode") async throws -> String {
+    /// Adds a note with streaming output - yields chunks as they arrive from opencode
+    static func addNoteStreaming(
+        _ note: String,
+        in directory: URL,
+        opencodePath: String = "/usr/local/bin/opencode"
+    ) -> (stream: AsyncThrowingStream<String, Error>, getResult: () async throws -> StreamResult) {
         let currentDate = DateFormatter.noteDateFormatter.string(from: Date())
         let currentTime = DateFormatter.noteTimeFormatter.string(from: Date())
         
@@ -15,7 +26,14 @@ class OpenCodeService {
         - Refine and format the note following the conventions in claude.md
         - Fix any typos, grammar issues, or unclear phrasing
         - Keep the original meaning and intent intact
-        - Use appropriate formatting (tasks, bullet points, headers) based on content type
+        - Use active voice and short, concise sentences
+        - Use appropriate formatting based on content type:
+          - `- [ ]` for action items and tasks
+          - Bullet points for lists
+          - Bold (**text**) sparingly for emphasis
+        - Add relevant tags using #tag format where appropriate
+        - Add internal links using [[Note Name]] syntax for related concepts, people, or projects
+        - Creating new links is encouraged even if the target page doesn't exist yet
         - If it's a task completion, mark it appropriately
         - If it's a blocker or issue, format it clearly
         - Be concise but complete
@@ -32,28 +50,92 @@ class OpenCodeService {
         process.standardOutput = outputPipe
         process.standardError = errorPipe
         
-        return try await withCheckedThrowingContinuation { continuation in
+        // Accumulated data for final result
+        var accumulatedOutput = ""
+        var accumulatedError = ""
+        var streamError: Error?
+        
+        // Create continuation for final result
+        var resultContinuation: CheckedContinuation<StreamResult, Error>?
+        
+        let stream = AsyncThrowingStream<String, Error> { continuation in
+            // Set up stdout streaming
+            outputPipe.fileHandleForReading.readabilityHandler = { handle in
+                let data = handle.availableData
+                if data.isEmpty {
+                    // EOF reached
+                    outputPipe.fileHandleForReading.readabilityHandler = nil
+                } else if let chunk = String(data: data, encoding: .utf8) {
+                    accumulatedOutput += chunk
+                    continuation.yield(chunk)
+                }
+            }
+            
+            // Collect stderr (not streamed, just accumulated)
+            errorPipe.fileHandleForReading.readabilityHandler = { handle in
+                let data = handle.availableData
+                if data.isEmpty {
+                    errorPipe.fileHandleForReading.readabilityHandler = nil
+                } else if let chunk = String(data: data, encoding: .utf8) {
+                    accumulatedError += chunk
+                }
+            }
+            
+            // Handle process termination
+            process.terminationHandler = { proc in
+                // Clean up handlers
+                outputPipe.fileHandleForReading.readabilityHandler = nil
+                errorPipe.fileHandleForReading.readabilityHandler = nil
+                
+                // Read any remaining data
+                let remainingOutput = outputPipe.fileHandleForReading.readDataToEndOfFile()
+                let remainingError = errorPipe.fileHandleForReading.readDataToEndOfFile()
+                
+                if let chunk = String(data: remainingOutput, encoding: .utf8), !chunk.isEmpty {
+                    accumulatedOutput += chunk
+                    continuation.yield(chunk)
+                }
+                if let chunk = String(data: remainingError, encoding: .utf8), !chunk.isEmpty {
+                    accumulatedError += chunk
+                }
+                
+                if proc.terminationStatus != 0 {
+                    let error = OpenCodeError.executionFailed(accumulatedError)
+                    streamError = error
+                    continuation.finish(throwing: error)
+                    resultContinuation?.resume(throwing: error)
+                } else {
+                    continuation.finish()
+                    resultContinuation?.resume(returning: StreamResult(
+                        output: accumulatedOutput,
+                        error: accumulatedError.isEmpty ? nil : accumulatedError
+                    ))
+                }
+            }
+            
+            // Start the process
             DispatchQueue.global(qos: .userInitiated).async {
                 do {
                     try process.run()
-                    process.waitUntilExit()
-                    
-                    let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
-                    let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-                    
-                    let output = String(data: outputData, encoding: .utf8) ?? ""
-                    let error = String(data: errorData, encoding: .utf8) ?? ""
-                    
-                    if process.terminationStatus != 0 {
-                        continuation.resume(throwing: OpenCodeError.executionFailed(error))
-                    } else {
-                        continuation.resume(returning: output)
-                    }
                 } catch {
-                    continuation.resume(throwing: error)
+                    streamError = error
+                    continuation.finish(throwing: error)
+                    resultContinuation?.resume(throwing: error)
                 }
             }
         }
+        
+        // Function to await final result
+        let getResult: () async throws -> StreamResult = {
+            if let error = streamError {
+                throw error
+            }
+            return try await withCheckedThrowingContinuation { continuation in
+                resultContinuation = continuation
+            }
+        }
+        
+        return (stream, getResult)
     }
     
     static func checkOpencodeInstalled(at path: String) -> Bool {
