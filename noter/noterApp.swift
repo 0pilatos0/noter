@@ -1,17 +1,27 @@
-//
-//  noterApp.swift
-//  noter
-//
-//  Created by Paul van der Lei on 23/12/2025.
-//
-
 import SwiftUI
+import AppKit
 
 @main
 struct noterApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    
     var body: some Scene {
-        WindowGroup {
-            ContentView()
+        Settings {
+            EmptyView()
         }
+    }
+}
+
+class AppDelegate: NSObject, NSApplicationDelegate {
+    private var menuBarManager: MenuBarManager?
+    
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        menuBarManager = MenuBarManager()
+        
+        NSApp.setActivationPolicy(.accessory)
+    }
+    
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        return false
     }
 }
