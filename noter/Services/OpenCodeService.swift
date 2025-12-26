@@ -36,48 +36,49 @@ class OpenCodeService {
         
         let prompt = """
         Add this note to today's daily note (\(currentDate)). Current time: \(currentTime).
-        
+
         The user's raw input is:
         \(note)
-        
+
         ## Instructions
-        
+
+        ### First: Understand the Vault
+        Before making changes, explore the vault to understand its structure:
+        1. Check CLAUDE.md (if it exists) for vault-specific conventions and guidelines
+        2. Read today's daily note to understand its current structure and sections
+        3. Look for a People/ directory to find existing person notes for linking
+        4. Look for common project/documentation folders to find linkable notes
+
         ### Content Processing
-        - Refine and format the note following the conventions in claude.md
-        - Fix any typos, grammar issues, or unclear phrasing
+        - Refine and format the note (fix typos, grammar, unclear phrasing)
         - Keep the original meaning and intent intact
-        - Use active voice and short, concise sentences
-        - Be concise but complete
-        - Do NOT add timestamps unless the user explicitly mentions a time or asks for one
-        
-        ### Grouping & Organization
-        - Check if the daily note already has a relevant section for this content (e.g., "Tasks", "Meetings", "Ideas", "Notes")
-        - If a relevant section exists, add the note there instead of appending to the end
-        - Group related items together: tasks with tasks, meeting notes with meetings, ideas with ideas
-        - If adding multiple items, keep them together under the appropriate section
-        - If no relevant section exists and the note doesn't fit existing sections, append to the end
-        
+        - Use active voice and concise sentences
+        - Do NOT add timestamps unless explicitly requested
+
+        ### Intelligent Section Placement
+        - Read the existing daily note to identify its sections
+        - Place content in the most appropriate existing section:
+          - Tasks/accomplishments → task-related sections (e.g., "Goals", "Done", "Tasks")
+          - Problems/obstacles → blocker-related sections (e.g., "Blockers", "Issues")
+          - General notes → notes/misc sections
+        - If no relevant section exists, append to the end
+        - Never create duplicate headings - use existing ones
+
+        ### Smart Linking
+        - When names are mentioned, check if a matching note exists in People/ (or similar directory)
+        - Link to existing notes using [[Note Name]] syntax
+        - Before creating a link, verify the target note exists or is a reasonable new page
+        - Prefer full names for people links (e.g., [[John Smith]] not [[John]])
+
         ### Markdown Structure
         - Preserve the existing markdown structure of the daily note
-        - Do not create duplicate headings - use existing ones
-        - Maintain consistent heading hierarchy (## for main sections, ### for subsections)
-        - Ensure proper spacing: one blank line before headings, no trailing whitespace
+        - Maintain consistent heading hierarchy
         - Keep list indentation consistent with the rest of the document
-        - Do not leave orphaned or empty sections
-        
-        ### Formatting
-        - Use `- [ ]` for action items and tasks
-        - Use `- [x]` for completed tasks
-        - Use bullet points (`-`) for lists and notes
-        - Use bold (**text**) sparingly for emphasis
-        - Add relevant tags using #tag format where appropriate
-        - Add internal links using [[Note Name]] syntax for related concepts, people, or projects
-        - Before creating a new link, check if a similar link already exists under a slightly different name (e.g., [[Meeting Notes]] vs [[Meetings]], [[John Smith]] vs [[John]])
-        - Creating new links is encouraged even if the target page doesn't exist yet
-        
+        - Preserve any footer patterns (tags, backlinks, separators)
+
         ### Output
-        - Do not add unnecessary commentary, just add the refined note
-        - Do not repeat or summarize what you did - just make the changes
+        - Just make the changes - no commentary or summaries
+        - Do not repeat or summarize what you did
         """
         
         let outputPipe = Pipe()
