@@ -17,6 +17,7 @@ struct SettingsView: View {
     @State private var showSaveSuccess: Bool = false
     @State private var showLaunchAtLoginError: Bool = false
     @State private var launchAtLoginErrorMessage: String = ""
+    @State private var isDetectingPath: Bool = false
     
     private var isCustomModel: Bool {
         !AppSettings.defaultModels.contains(model)
@@ -149,7 +150,28 @@ struct SettingsView: View {
                             .textFieldStyle(.roundedBorder)
                             .font(.system(size: 12))
                             .autocorrectionDisabled()
-                        
+
+                        Button {
+                            Task {
+                                isDetectingPath = true
+                                if let detected = await OpenCodePathDetector.detectPath() {
+                                    opencodePath = detected
+                                }
+                                isDetectingPath = false
+                            }
+                        } label: {
+                            if isDetectingPath {
+                                ProgressView()
+                                    .scaleEffect(0.6)
+                                    .frame(width: 14, height: 14)
+                            } else {
+                                Text("Detect")
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .disabled(isDetectingPath)
+
                         if OpenCodeService.checkOpencodeInstalled(at: opencodePath) {
                             HStack(spacing: 4) {
                                 Image(systemName: "checkmark.circle.fill")

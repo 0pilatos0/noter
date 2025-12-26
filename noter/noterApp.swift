@@ -55,6 +55,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         Task {
             await NoteQueueService.shared.processQueue()
         }
+
+        // Auto-detect OpenCode path on first launch or if current path is invalid
+        Task {
+            let settings = StorageManager.loadSettings()
+            let needsDetection = settings.opencodePath.isEmpty ||
+                                 !OpenCodeService.checkOpencodeInstalled(at: settings.opencodePath)
+
+            if needsDetection, let detected = await OpenCodePathDetector.detectPath() {
+                var updatedSettings = settings
+                updatedSettings.opencodePath = detected
+                _ = StorageManager.saveSettings(updatedSettings)
+            }
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
