@@ -9,6 +9,8 @@ struct SettingsView: View {
     @State private var model: String = ""
     @State private var customModel: String = ""
     @State private var launchAtLogin: Bool = false
+    @State private var globalHotkey: KeyCombination?
+    @State private var hotkeyEnabled: Bool = true
     @State private var showingFilePicker: Bool = false
     @State private var showValidationError: Bool = false
     @State private var validationErrorMessage: String = ""
@@ -27,6 +29,8 @@ struct SettingsView: View {
         _model = State(initialValue: settings.model)
         _customModel = State(initialValue: AppSettings.defaultModels.contains(settings.model) ? "" : settings.model)
         _launchAtLogin = State(initialValue: AppSettings.isLaunchAtLoginEnabled)
+        _globalHotkey = State(initialValue: settings.globalHotkey)
+        _hotkeyEnabled = State(initialValue: settings.hotkeyEnabled)
     }
     
     var body: some View {
@@ -271,12 +275,49 @@ struct SettingsView: View {
                     .cornerRadius(6)
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }
+
+                // Global Hotkey section
+                VStack(alignment: .leading, spacing: 8) {
+                    Toggle(isOn: $hotkeyEnabled) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "keyboard")
+                                .font(.system(size: 14))
+                                .foregroundStyle(.secondary)
+                            Text("Global Hotkey")
+                                .font(.system(size: 12))
+                        }
+                    }
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .onChange(of: hotkeyEnabled) { _, newValue in
+                        updateHotkey()
+                        saveSettings()
+                    }
+
+                    if hotkeyEnabled {
+                        HStack {
+                            HotkeyRecorderView(keyCombination: $globalHotkey)
+                                .onChange(of: globalHotkey) { _, _ in
+                                    updateHotkey()
+                                    saveSettings()
+                                }
+                        }
+                        .padding(.leading, 22)
+                    }
+                }
             }
-            
+
             Rectangle()
                 .fill(Color.gray.opacity(0.3))
                 .frame(height: 1)
-            
+
+            // Templates section
+            TemplatesSettingsView()
+
+            Rectangle()
+                .fill(Color.gray.opacity(0.3))
+                .frame(height: 1)
+
             HStack(spacing: 8) {
                 Image(systemName: "info.circle")
                     .font(.system(size: 12))
@@ -289,7 +330,7 @@ struct SettingsView: View {
             .padding(12)
             .background(Color.primary.opacity(0.03))
             .cornerRadius(8)
-            
+
             Spacer()
         }
         .padding(18)
@@ -322,7 +363,9 @@ struct SettingsView: View {
         var settings = AppSettings(vaultDirectory: vaultDirectory, opencodePath: opencodePath)
         settings.model = model == "custom" ? customModel : model
         settings.launchAtLogin = launchAtLogin
-        
+        settings.globalHotkey = globalHotkey
+        settings.hotkeyEnabled = hotkeyEnabled
+
         let result = StorageManager.saveSettings(settings)
         switch result {
         case .success:
@@ -341,4 +384,18 @@ struct SettingsView: View {
             showValidationError = true
         }
     }
+
+    private func updateHotkey() {
+        if hotkeyEnabled, let combo = globalHotkey {
+            HotkeyService.shared.register(combo) {
+                NotificationCenter.default.post(name: .showPopoverFromHotkey, object: nil)
+            }
+        } else {
+            HotkeyService.shared.unregister()
+        }
+    }
+}
+
+extension Notification.Name {
+    static let showPopoverFromHotkey = Notification.Name("showPopoverFromHotkey")
 }

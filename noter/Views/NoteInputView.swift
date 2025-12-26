@@ -7,6 +7,8 @@ struct NoteInputView: View {
     @State private var showSuccess: Bool = false
     @State private var showError: Bool = false
     @State private var errorMessage: String = ""
+    @State private var showQueueOption: Bool = false
+    @State private var failedNoteText: String = ""
     @State private var showOutput: Bool = false
     @State private var hasOutput: Bool = false
     @State private var currentOperationHandle: NoteOperationHandle?
@@ -16,9 +18,23 @@ struct NoteInputView: View {
     let vaultDirectory: URL
     let opencodePath: String
     let model: String
-    
+    var prefillText: String = ""
+
+    init(vaultDirectory: URL, opencodePath: String, model: String, prefillText: String = "") {
+        self.vaultDirectory = vaultDirectory
+        self.opencodePath = opencodePath
+        self.model = model
+        self.prefillText = prefillText
+        _noteText = State(initialValue: prefillText)
+    }
+
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
+            // Quick actions bar
+            QuickActionsBar { template in
+                applyTemplate(template)
+            }
+
             // Main input card
             VStack(spacing: 0) {
                 // Text editor with placeholder
@@ -131,10 +147,31 @@ struct NoteInputView: View {
             
             // Status banner
             if showSuccess || showError {
-                StatusBanner(
-                    isSuccess: showSuccess,
-                    message: showSuccess ? "Added to daily note" : errorMessage
-                )
+                VStack(spacing: 8) {
+                    StatusBanner(
+                        isSuccess: showSuccess,
+                        message: showSuccess ? "Added to daily note" : errorMessage
+                    )
+
+                    // Queue option on error
+                    if showQueueOption && !failedNoteText.isEmpty {
+                        HStack(spacing: 12) {
+                            Button(action: addToQueue) {
+                                Label("Add to Queue", systemImage: "tray.and.arrow.down")
+                                    .font(.system(size: 11, weight: .medium))
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+
+                            Button(action: dismissQueueOption) {
+                                Text("Dismiss")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
                 .transition(.asymmetric(
                     insertion: .opacity.combined(with: .move(edge: .top)),
                     removal: .opacity
@@ -172,13 +209,50 @@ struct NoteInputView: View {
         currentOperationHandle?.cancel()
         currentOperationHandle = nil
         isLoading = false
-        
+
         outputText += "\n\n[Cancelled]"
-        
+
         withAnimation(.easeInOut(duration: 0.2)) {
             showError = false
             showSuccess = false
         }
+    }
+
+    private func addToQueue() {
+        guard !failedNoteText.isEmpty else { return }
+
+        NoteQueueService.shared.enqueueFailedNote(
+            text: failedNoteText,
+            vaultPath: vaultDirectory.path,
+            model: model,
+            opencodePath: opencodePath,
+            error: errorMessage
+        )
+
+        withAnimation(.easeInOut(duration: 0.2)) {
+            showError = false
+            showQueueOption = false
+            failedNoteText = ""
+            noteText = ""
+        }
+    }
+
+    private func dismissQueueOption() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            showQueueOption = false
+            failedNoteText = ""
+        }
+    }
+
+    private func applyTemplate(_ template: NoteTemplate) {
+        let expandedText = template.expanded()
+        if noteText.isEmpty {
+            noteText = expandedText
+        } else {
+            // Append to existing text
+            noteText += (noteText.hasSuffix("\n") ? "" : "\n") + expandedText
+        }
+        isTextEditorFocused = true
     }
     
     private func addNote() {
@@ -215,10 +289,17 @@ struct NoteInputView: View {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     showSuccess = true
                 }
-                
+
+                // Save to history
+                HistoryService.shared.addProcessedNote(
+                    text: noteToAdd,
+                    vaultPath: vaultDirectory.path,
+                    outputPreview: String(outputText.prefix(100))
+                )
+
                 // Auto-dismiss success and clear text
                 try await Task.sleep(nanoseconds: 1_500_000_000)
-                
+
                 withAnimation(.easeInOut(duration: 0.2)) {
                     showSuccess = false
                 }
@@ -230,16 +311,26 @@ struct NoteInputView: View {
                 outputText += "\n\nError: \(error.localizedDescription)"
                 hasOutput = true
                 errorMessage = error.localizedDescription
-                
+                failedNoteText = noteToAdd
+
+                // Save failed note to history
+                HistoryService.shared.addFailedNote(
+                    text: noteToAdd,
+                    vaultPath: vaultDirectory.path
+                )
+
                 withAnimation(.easeInOut(duration: 0.2)) {
                     showError = true
+                    showQueueOption = true
                 }
-                
-                // Auto-dismiss error after longer delay
-                try? await Task.sleep(nanoseconds: 4_000_000_000)
-                
+
+                // Auto-dismiss error after longer delay (but keep queue option)
+                try? await Task.sleep(nanoseconds: 6_000_000_000)
+
                 withAnimation(.easeInOut(duration: 0.2)) {
                     showError = false
+                    showQueueOption = false
+                    failedNoteText = ""
                 }
             }
             

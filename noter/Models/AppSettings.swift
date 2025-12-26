@@ -20,6 +20,8 @@ struct AppSettings: Codable {
     var opencodePath: String = "/usr/local/bin/opencode"
     var model: String = "opencode/big-pickle"
     var launchAtLogin: Bool = false
+    var globalHotkey: KeyCombination? = KeyCombination.defaultHotkey
+    var hotkeyEnabled: Bool = true
     
     /// Default available models for quick selection
     static let defaultModels = [

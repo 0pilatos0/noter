@@ -54,12 +54,23 @@ class MenuBarManager: ObservableObject {
     
     @objc private func togglePopover() {
         guard let popover = popover, let button = statusItem?.button else { return }
-        
+
         if popover.isShown {
             popover.performClose(nil)
         } else {
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            NSApp.activate(ignoringOtherApps: true)
         }
+    }
+
+    /// Show the popover (used by global hotkey)
+    func showPopover() {
+        guard let popover = popover, let button = statusItem?.button else { return }
+
+        if !popover.isShown {
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        }
+        NSApp.activate(ignoringOtherApps: true)
     }
     
     @objc private func quitApp() {
