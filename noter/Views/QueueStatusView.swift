@@ -10,40 +10,34 @@ struct QueueStatusView: View {
 
     var body: some View {
         if queueCount > 0 {
-            HStack(spacing: 8) {
+            HStack(spacing: NoterSpacing.sm) {
                 // Queue indicator
-                HStack(spacing: 6) {
+                HStack(spacing: NoterSpacing.xs + NoterSpacing.xxs) {
                     Image(systemName: "tray.full.fill")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.orange)
+                        .font(.system(size: NoterIconSize.sm))
+                        .foregroundStyle(NoterColors.Status.warning)
 
                     Text("\(queueCount) queued")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(NoterTypography.captionMedium)
                         .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
                 // Retry button
-                Button(action: onRetryAll) {
-                    Text("Retry All")
-                        .font(.system(size: 10, weight: .medium))
+                NoterButton("Retry All", style: .secondary) {
+                    onRetryAll()
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.mini)
 
                 // View queue button
-                Button(action: onViewQueue) {
-                    Image(systemName: "list.bullet")
-                        .font(.system(size: 11))
+                NoterIconButton(icon: "list.bullet", help: "View queue") {
+                    onViewQueue()
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color.orange.opacity(0.1))
-            .cornerRadius(8)
+            .padding(.horizontal, NoterSpacing.md)
+            .padding(.vertical, NoterSpacing.sm)
+            .background(NoterColors.Status.warningBackground)
+            .cornerRadius(NoterRadius.lg)
         }
     }
 
@@ -72,9 +66,9 @@ struct QueueBadge: View {
             Text("\(count)")
                 .font(.system(size: 9, weight: .bold))
                 .foregroundStyle(.white)
-                .padding(.horizontal, 4)
-                .padding(.vertical, 2)
-                .background(Capsule().fill(.red))
+                .padding(.horizontal, NoterSpacing.xs)
+                .padding(.vertical, NoterSpacing.xxs)
+                .background(Capsule().fill(NoterColors.Status.error))
                 .fixedSize()
         }
     }

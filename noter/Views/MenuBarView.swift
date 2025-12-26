@@ -12,59 +12,43 @@ struct MenuBarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // Tab picker
             Picker("", selection: $selectedTab) {
                 ForEach(Tab.allCases, id: \.self) { tab in
                     Text(tab.rawValue).tag(tab)
                 }
             }
             .pickerStyle(.segmented)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.horizontal, NoterSpacing.lg)
+            .padding(.vertical, NoterSpacing.md)
 
-            Rectangle()
-                .fill(Color.gray.opacity(0.3))
-                .frame(height: 1)
+            NoterDivider()
 
+            // Content area
             Group {
                 if !StorageManager.hasConfiguredDirectory() && selectedTab == .note {
-                    ScrollView {
-                        VStack(spacing: 20) {
-                            Spacer()
-                            Image(systemName: "folder.badge.questionmark")
-                                .font(.system(size: 56))
-                                .foregroundStyle(.secondary.opacity(0.6))
-                            Text("No Directory Configured")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(.primary)
-                            Text("Please configure your Obsidian vault in Settings")
-                                .font(.system(size: 13))
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.center)
-                                .lineSpacing(4)
-                            Button("Go to Settings") {
-                                selectedTab = .settings
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.regular)
-                            Spacer()
+                    // Empty state for unconfigured vault
+                    NoterEmptyState(
+                        icon: "folder.badge.questionmark",
+                        title: "No Directory Configured",
+                        subtitle: "Please configure your Obsidian vault in Settings",
+                        action: .init("Go to Settings", icon: "gear") {
+                            selectedTab = .settings
                         }
-                        .padding(18)
-                    }
+                    )
                 } else {
                     let settings = StorageManager.loadSettings()
                     switch selectedTab {
                     case .note:
                         if let directory = settings.vaultDirectory {
-                            ScrollView {
-                                NoteInputView(
-                                    vaultDirectory: directory,
-                                    opencodePath: settings.opencodePath,
-                                    model: settings.model,
-                                    prefillText: prefillNoteText
-                                )
-                            }
+                            // Note: Removed ScrollView wrapper - NoteInputView handles its own scrolling
+                            NoteInputView(
+                                vaultDirectory: directory,
+                                opencodePath: settings.opencodePath,
+                                model: settings.model,
+                                prefillText: prefillNoteText
+                            )
                             .onChange(of: selectedTab) { _, _ in
-                                // Clear prefill when switching tabs
                                 if !prefillNoteText.isEmpty {
                                     prefillNoteText = ""
                                 }

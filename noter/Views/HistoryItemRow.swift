@@ -8,99 +8,99 @@ struct HistoryItemRow: View {
     @State private var isExpanded = false
     @State private var isHovered = false
 
+    private var isExpandable: Bool {
+        item.originalText.count > 60 || item.originalText.contains("\n")
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Main row content
-            HStack(alignment: .top, spacing: 10) {
-                // Status icon
-                Image(systemName: item.statusIcon)
-                    .font(.system(size: 12))
-                    .foregroundStyle(statusColor)
-                    .frame(width: 16)
+            HStack(alignment: .top, spacing: NoterSpacing.sm + NoterSpacing.xxs) {
+                // Status icon with shape differentiation for accessibility
+                StatusIndicator(statusIndicatorType, size: NoterIconSize.sm)
+                    .frame(width: NoterSpacing.lg)
 
                 // Text content
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: NoterSpacing.xs) {
                     Text(item.truncatedText)
-                        .font(.system(size: 12))
+                        .font(NoterTypography.body)
                         .foregroundStyle(.primary)
                         .lineLimit(isExpanded ? nil : 2)
 
                     Text(item.fullDisplayDate)
-                        .font(.system(size: 10))
+                        .font(NoterTypography.captionSmall)
                         .foregroundStyle(.tertiary)
                 }
 
                 Spacer()
 
+                // Actions - always visible for accessibility
+                HStack(spacing: NoterSpacing.xs) {
+                    NoterIconButton(icon: "trash", style: .destructive, help: "Delete from history") {
+                        onDelete()
+                    }
+                }
+                .alwaysVisibleActions(isHovered: isHovered, isExpanded: isExpanded)
+
                 // Expand/collapse indicator
-                if item.originalText.count > 60 || item.originalText.contains("\n") {
+                if isExpandable {
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 10))
+                        .font(.system(size: NoterIconSize.xs))
                         .foregroundStyle(.tertiary)
                 }
             }
-            .padding(.vertical, 10)
-            .padding(.horizontal, 12)
+            .padding(.vertical, NoterSpacing.sm + NoterSpacing.xxs)
+            .padding(.horizontal, NoterSpacing.md)
             .contentShape(Rectangle())
             .onTapGesture {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isExpanded.toggle()
+                if isExpandable {
+                    withAnimation(.easeInOut(duration: NoterAnimation.normal)) {
+                        isExpanded.toggle()
+                    }
                 }
             }
 
             // Expanded content
             if isExpanded {
-                VStack(alignment: .leading, spacing: 8) {
-                    // Full text
+                VStack(alignment: .leading, spacing: NoterSpacing.sm) {
+                    // Full text in a card
                     Text(item.originalText)
-                        .font(.system(size: 11))
+                        .font(NoterTypography.caption)
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
+                        .padding(NoterSpacing.md)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.primary.opacity(0.03))
-                        .cornerRadius(6)
+                        .background(NoterColors.surfaceSubtle)
+                        .cornerRadius(NoterRadius.md)
 
                     // Action buttons
-                    HStack(spacing: 12) {
-                        Button(action: onUseAgain) {
-                            Label("Use Again", systemImage: "arrow.uturn.left")
-                                .font(.system(size: 11))
+                    HStack(spacing: NoterSpacing.md) {
+                        NoterButton("Use Again", icon: "arrow.uturn.left", style: .secondary) {
+                            onUseAgain()
                         }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
 
                         Spacer()
-
-                        Button(action: onDelete) {
-                            Image(systemName: "trash")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.red)
-                        }
-                        .buttonStyle(.plain)
-                        .help("Delete from history")
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 10)
                 }
+                .padding(.horizontal, NoterSpacing.md)
+                .padding(.bottom, NoterSpacing.sm + NoterSpacing.xxs)
             }
         }
-        .background(isHovered ? Color.primary.opacity(0.03) : Color.clear)
-        .cornerRadius(8)
+        .background(isHovered ? NoterColors.surfaceSubtle : Color.clear)
+        .cornerRadius(NoterRadius.lg)
         .onHover { hovering in
             isHovered = hovering
         }
     }
 
-    private var statusColor: Color {
+    private var statusIndicatorType: StatusIndicator.Status {
         switch item.status {
         case .processed:
-            return .green
+            return .success
         case .failed:
-            return .red
+            return .error
         case .queued:
-            return .orange
+            return .pending
         }
     }
 }
@@ -117,12 +117,24 @@ struct HistoryItemRow: View {
             onDelete: {}
         )
 
-        Divider()
+        NoterDivider(inset: NoterSpacing.md)
 
         HistoryItemRow(
             item: NoteHistoryItem(
                 originalText: "This is a much longer note that spans multiple lines and should be truncated in the preview but shown in full when expanded. It contains a lot of text to demonstrate the truncation behavior.",
                 status: .failed,
+                vaultPath: "/path/to/vault"
+            ),
+            onUseAgain: {},
+            onDelete: {}
+        )
+
+        NoterDivider(inset: NoterSpacing.md)
+
+        HistoryItemRow(
+            item: NoteHistoryItem(
+                originalText: "Queued note waiting to be processed",
+                status: .queued,
                 vaultPath: "/path/to/vault"
             ),
             onUseAgain: {},

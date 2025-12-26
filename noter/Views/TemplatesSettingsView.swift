@@ -7,71 +7,60 @@ struct TemplatesSettingsView: View {
     @State private var showResetConfirmation = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: NoterSpacing.md) {
             // Header
             HStack {
                 Text("Templates")
-                    .font(.system(size: 13, weight: .medium))
+                    .font(NoterTypography.sectionHeader)
                     .foregroundStyle(.primary)
 
                 Spacer()
 
-                Button(action: { isCreatingNew = true }) {
-                    Label("Add", systemImage: "plus")
-                        .font(.system(size: 11))
+                NoterButton("Add", icon: "plus", style: .secondary) {
+                    isCreatingNew = true
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.mini)
             }
 
             // Templates list
             if templateService.templates.isEmpty {
-                VStack(spacing: 8) {
+                VStack(spacing: NoterSpacing.sm) {
                     Image(systemName: "doc.text")
-                        .font(.system(size: 24))
+                        .font(.system(size: NoterIconSize.xl + NoterIconSize.xs))
                         .foregroundStyle(.tertiary)
                     Text("No templates")
-                        .font(.system(size: 12))
+                        .font(NoterTypography.body)
                         .foregroundStyle(.secondary)
-                    Button("Reset to Defaults") {
+                    NoterButton("Reset to Defaults", style: .tertiary) {
                         templateService.resetToDefaults()
                     }
-                    .font(.system(size: 11))
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 20)
+                .padding(.vertical, NoterSpacing.xl)
             } else {
-                VStack(spacing: 0) {
-                    ForEach(templateService.templates) { template in
-                        TemplateRow(
-                            template: template,
-                            onEdit: { editingTemplate = template },
-                            onDelete: { templateService.delete(template.id) }
-                        )
+                NoterCard(padding: 0) {
+                    VStack(spacing: 0) {
+                        ForEach(templateService.templates) { template in
+                            TemplateRow(
+                                template: template,
+                                onEdit: { editingTemplate = template },
+                                onDelete: { templateService.delete(template.id) }
+                            )
 
-                        if template.id != templateService.templates.last?.id {
-                            Divider()
+                            if template.id != templateService.templates.last?.id {
+                                NoterDivider()
+                            }
                         }
                     }
                 }
-                .background(Color.primary.opacity(0.03))
-                .cornerRadius(8)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.primary.opacity(0.06), lineWidth: 1)
-                )
             }
 
             // Reset button
             if !templateService.templates.isEmpty {
                 HStack {
                     Spacer()
-                    Button(action: { showResetConfirmation = true }) {
-                        Text("Reset to Defaults")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.secondary)
+                    NoterButton("Reset to Defaults", style: .tertiary) {
+                        showResetConfirmation = true
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
@@ -131,17 +120,17 @@ struct TemplateRow: View {
     @State private var isHovered = false
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: NoterSpacing.sm + NoterSpacing.xxs) {
             // Icon and color indicator
             Image(systemName: template.icon)
-                .font(.system(size: 12))
-                .foregroundStyle(colorForName(template.color))
-                .frame(width: 20)
+                .font(.system(size: NoterIconSize.sm))
+                .foregroundStyle(NoterTemplateColor.from(template.color))
+                .frame(width: NoterSpacing.xl)
 
             // Name and quick action indicator
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: NoterSpacing.xxs) {
                 Text(template.name)
-                    .font(.system(size: 12))
+                    .font(NoterTypography.body)
                     .foregroundStyle(.primary)
 
                 if template.showInQuickActions {
@@ -153,50 +142,29 @@ struct TemplateRow: View {
 
             Spacer()
 
-            // Actions (visible on hover)
-            if isHovered {
-                HStack(spacing: 8) {
-                    Button(action: onEdit) {
-                        Image(systemName: "pencil")
-                            .font(.system(size: 11))
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
+            // Actions - always visible for accessibility
+            HStack(spacing: NoterSpacing.sm) {
+                NoterIconButton(icon: "pencil", help: "Edit template") {
+                    onEdit()
+                }
 
-                    Button(action: onDelete) {
-                        Image(systemName: "trash")
-                            .font(.system(size: 11))
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.red.opacity(0.8))
+                NoterIconButton(icon: "trash", style: .destructive, help: "Delete template") {
+                    onDelete()
                 }
             }
+            .alwaysVisibleActions(isHovered: isHovered)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, NoterSpacing.md)
+        .padding(.vertical, NoterSpacing.sm)
         .contentShape(Rectangle())
+        .background(isHovered ? NoterColors.surfaceSubtle : .clear)
         .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.15)) {
+            withAnimation(.easeInOut(duration: NoterAnimation.fast)) {
                 isHovered = hovering
             }
         }
         .onTapGesture {
             onEdit()
-        }
-    }
-
-    private func colorForName(_ name: String) -> Color {
-        switch name {
-        case "blue": return .blue
-        case "purple": return .purple
-        case "green": return .green
-        case "orange": return .orange
-        case "red": return .red
-        case "yellow": return .yellow
-        case "gray": return .gray
-        case "pink": return .pink
-        case "teal": return .teal
-        default: return .blue
         }
     }
 }

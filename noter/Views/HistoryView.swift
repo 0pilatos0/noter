@@ -12,25 +12,22 @@ struct HistoryView: View {
             // Header
             HStack {
                 Text("History")
-                    .font(.system(size: 13, weight: .medium))
+                    .font(NoterTypography.sectionHeader)
                     .foregroundStyle(.primary)
 
                 Spacer()
 
                 if !items.isEmpty {
-                    Button(action: { showClearConfirmation = true }) {
-                        Text("Clear All")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
+                    NoterButton("Clear All", style: .tertiary) {
+                        showClearConfirmation = true
                     }
-                    .buttonStyle(.plain)
                     .help("Clear all history")
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.horizontal, NoterSpacing.lg)
+            .padding(.vertical, NoterSpacing.md)
 
-            Divider()
+            NoterDivider()
 
             // Content
             if isLoading {
@@ -39,20 +36,10 @@ struct HistoryView: View {
                     .scaleEffect(0.8)
                 Spacer()
             } else if items.isEmpty {
-                Spacer()
-                VStack(spacing: 12) {
-                    Image(systemName: "clock")
-                        .font(.system(size: 32))
-                        .foregroundStyle(.tertiary)
-
-                    Text("No history yet")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
-
-                    Text("Your captured notes will appear here")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.tertiary)
-                }
+                NoterEmptyStateCompact(
+                    icon: "clock",
+                    message: "No history yet"
+                )
                 Spacer()
             } else {
                 ScrollView {
@@ -69,12 +56,11 @@ struct HistoryView: View {
                             )
 
                             if item.id != items.last?.id {
-                                Divider()
-                                    .padding(.horizontal, 12)
+                                NoterDivider(inset: NoterSpacing.md)
                             }
                         }
                     }
-                    .padding(.vertical, 4)
+                    .padding(.vertical, NoterSpacing.xs)
                 }
             }
         }

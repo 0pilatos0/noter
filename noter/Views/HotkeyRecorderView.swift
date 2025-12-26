@@ -8,17 +8,17 @@ struct HotkeyRecorderView: View {
     @State private var eventMonitor: Any?
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: NoterSpacing.md) {
             // Display current hotkey or recording state
-            HStack(spacing: 6) {
+            HStack(spacing: NoterSpacing.xs + NoterSpacing.xxs) {
                 if isRecording {
                     Image(systemName: "keyboard")
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(NoterColors.Status.info)
                     Text("Press keys...")
                         .foregroundStyle(.secondary)
                 } else if let combo = keyCombination {
                     Text(combo.displayString)
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .font(NoterTypography.keyboardHint)
                         .foregroundStyle(.primary)
                 } else {
                     Text("Not set")
@@ -26,32 +26,27 @@ struct HotkeyRecorderView: View {
                 }
             }
             .frame(minWidth: 100)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+            .padding(.horizontal, NoterSpacing.md)
+            .padding(.vertical, NoterSpacing.xs + NoterSpacing.xxs)
             .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(isRecording ? Color.blue.opacity(0.1) : Color.primary.opacity(0.05))
+                RoundedRectangle(cornerRadius: NoterRadius.md)
+                    .fill(isRecording ? NoterColors.Status.infoBackground : NoterColors.surfaceLight)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(isRecording ? Color.blue : Color.primary.opacity(0.1), lineWidth: 1)
+                RoundedRectangle(cornerRadius: NoterRadius.md)
+                    .stroke(isRecording ? NoterColors.Status.info : NoterColors.strokeSubtle, lineWidth: 1)
             )
 
             // Record/Stop button
-            Button(action: toggleRecording) {
-                Text(isRecording ? "Cancel" : "Record")
-                    .font(.system(size: 12))
+            NoterButton(isRecording ? "Cancel" : "Record", style: .secondary) {
+                toggleRecording()
             }
-            .buttonStyle(.bordered)
 
             // Clear button
             if keyCombination != nil && !isRecording {
-                Button(action: clearHotkey) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
+                NoterIconButton(icon: "xmark.circle.fill", help: "Clear hotkey") {
+                    clearHotkey()
                 }
-                .buttonStyle(.plain)
-                .help("Clear hotkey")
             }
         }
         .onDisappear {

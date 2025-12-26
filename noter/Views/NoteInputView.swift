@@ -4,17 +4,15 @@ struct NoteInputView: View {
     @State private var noteText: String = ""
     @State private var outputText: String = ""
     @State private var isLoading: Bool = false
-    @State private var showSuccess: Bool = false
-    @State private var showError: Bool = false
-    @State private var errorMessage: String = ""
+    @State private var bannerType: NoterStatusBanner.BannerType?
     @State private var showQueueOption: Bool = false
     @State private var failedNoteText: String = ""
     @State private var showOutput: Bool = false
     @State private var hasOutput: Bool = false
     @State private var currentOperationHandle: NoteOperationHandle?
-    
+
     @FocusState private var isTextEditorFocused: Bool
-    
+
     let vaultDirectory: URL
     let opencodePath: String
     let model: String
@@ -29,146 +27,114 @@ struct NoteInputView: View {
     }
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: NoterSpacing.md) {
             // Quick actions bar
             QuickActionsBar { template in
                 applyTemplate(template)
             }
 
             // Main input card
-            VStack(spacing: 0) {
-                // Text editor with placeholder
-                ZStack(alignment: .topLeading) {
-                    TextEditor(text: $noteText)
-                        .font(.system(size: 13))
-                        .scrollContentBackground(.hidden)
-                        .background(.clear)
-                        .focused($isTextEditorFocused)
-                        .disabled(isLoading)
-                    
-                    // Placeholder - positioned to match TextEditor's internal padding
-                    if noteText.isEmpty {
-                        HStack(spacing: 6) {
-                            Image(systemName: "pencil.line")
-                                .font(.system(size: 12))
-                            Text("Capture a thought...")
-                        }
-                        .font(.system(size: 13))
-                        .foregroundStyle(.tertiary)
-                        .padding(.top, 0)
-                        .padding(.leading, 6)
-                        .allowsHitTesting(false)
-                    }
-                }
-                .frame(minHeight: 100, maxHeight: 140)
-                .padding(.horizontal, 12)
-                .padding(.top, 12)
-                .padding(.bottom, 8)
-                
-                // Toolbar
-                HStack(spacing: 12) {
-                    // Output toggle button
-                    Button(action: { withAnimation(.easeInOut(duration: 0.2)) { showOutput.toggle() } }) {
-                        ZStack(alignment: .topTrailing) {
-                            Image(systemName: "terminal")
-                                .font(.system(size: 13))
-                                .foregroundStyle(showOutput ? .primary : .secondary)
-                            
-                            // Indicator dot when output available
-                            if hasOutput && !showOutput {
-                                Circle()
-                                    .fill(.blue)
-                                    .frame(width: 6, height: 6)
-                                    .offset(x: 2, y: -2)
+            NoterInputCard {
+                VStack(spacing: 0) {
+                    // Text editor with placeholder
+                    ZStack(alignment: .topLeading) {
+                        TextEditor(text: $noteText)
+                            .font(NoterTypography.sectionHeader)
+                            .scrollContentBackground(.hidden)
+                            .background(.clear)
+                            .focused($isTextEditorFocused)
+                            .disabled(isLoading)
+
+                        // Placeholder
+                        if noteText.isEmpty {
+                            HStack(spacing: NoterSpacing.xs + NoterSpacing.xxs) {
+                                Image(systemName: "pencil.line")
+                                    .font(.system(size: NoterIconSize.sm))
+                                Text("Capture a thought...")
                             }
+                            .font(NoterTypography.sectionHeader)
+                            .foregroundStyle(.tertiary)
+                            .padding(.top, 0)
+                            .padding(.leading, NoterSpacing.xs + NoterSpacing.xxs)
+                            .allowsHitTesting(false)
                         }
                     }
-                    .buttonStyle(.plain)
-                    .help("Toggle output")
-                    
-                    Spacer()
-                    
-                    // Cancel button (shown when loading)
-                    if isLoading {
-                        Button(action: cancelNote) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 12))
-                                Text("Cancel")
-                                    .font(.system(size: 11, weight: .medium))
+                    .frame(minHeight: 100, maxHeight: 140)
+                    .padding(.horizontal, NoterSpacing.md)
+                    .padding(.top, NoterSpacing.md)
+                    .padding(.bottom, NoterSpacing.sm)
+                    .focusRing(isFocused: isTextEditorFocused, cornerRadius: NoterRadius.lg)
+
+                    // Toolbar
+                    HStack(spacing: NoterSpacing.md) {
+                        // Output toggle button
+                        Button(action: { withAnimation(.easeInOut(duration: NoterAnimation.normal)) { showOutput.toggle() } }) {
+                            ZStack(alignment: .topTrailing) {
+                                Image(systemName: "terminal")
+                                    .font(.system(size: NoterIconSize.md))
+                                    .foregroundStyle(showOutput ? .primary : .secondary)
+
+                                // Indicator dot when output available
+                                if hasOutput && !showOutput {
+                                    Circle()
+                                        .fill(NoterColors.Status.info)
+                                        .frame(width: 6, height: 6)
+                                        .offset(x: 2, y: -2)
+                                }
                             }
-                            .foregroundStyle(.secondary)
                         }
                         .buttonStyle(.plain)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.primary.opacity(0.05))
-                        .cornerRadius(4)
-                        .keyboardShortcut(.escape, modifiers: [])
-                    } else {
-                        // Keyboard shortcut hint
-                        Text("⌘↵")
-                            .font(.system(size: 11, weight: .medium, design: .rounded))
-                            .foregroundStyle(.tertiary)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.primary.opacity(0.05))
-                            .cornerRadius(4)
-                    }
-                    
-                    // Send button
-                    Button(action: addNote) {
-                        Group {
-                            if isLoading {
-                                ProgressView()
-                                    .controlSize(.small)
-                                    .scaleEffect(0.8)
-                            } else {
-                                Image(systemName: "arrow.up.circle.fill")
-                                    .font(.system(size: 22))
-                                    .symbolRenderingMode(.hierarchical)
+                        .help("Toggle output")
+                        .accessibleIconButton(label: "Toggle output panel")
+
+                        Spacer()
+
+                        // Cancel button (shown when loading)
+                        if isLoading {
+                            NoterButton("Cancel", icon: "xmark.circle.fill", style: .tertiary) {
+                                cancelNote()
                             }
+                            .keyboardShortcut(.escape, modifiers: [])
+                        } else {
+                            // Keyboard shortcut hint
+                            Text("\u{2318}\u{21A9}")
+                                .font(NoterTypography.keyboardHint)
+                                .foregroundStyle(.tertiary)
+                                .padding(.horizontal, NoterSpacing.xs + NoterSpacing.xxs)
+                                .padding(.vertical, NoterSpacing.xxs)
+                                .background(NoterColors.surfaceLight)
+                                .cornerRadius(NoterRadius.sm)
                         }
-                        .foregroundStyle(noteText.isEmpty || isLoading ? Color.gray : Color.blue)
+
+                        // Send button
+                        NoterSendButton(
+                            isLoading: isLoading,
+                            isDisabled: noteText.isEmpty
+                        ) {
+                            addNote()
+                        }
+                        .keyboardShortcut(.return, modifiers: .command)
                     }
-                    .buttonStyle(.plain)
-                    .disabled(noteText.isEmpty || isLoading)
-                    .keyboardShortcut(.return, modifiers: .command)
+                    .padding(.horizontal, NoterSpacing.md)
+                    .padding(.bottom, NoterSpacing.sm + NoterSpacing.xxs)
                 }
-                .padding(.horizontal, 12)
-                .padding(.bottom, 10)
             }
-            .background(Color.primary.opacity(0.04))
-            .cornerRadius(10)
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-            )
-            
+
             // Status banner
-            if showSuccess || showError {
-                VStack(spacing: 8) {
-                    StatusBanner(
-                        isSuccess: showSuccess,
-                        message: showSuccess ? "Added to daily note" : errorMessage
-                    )
+            if bannerType != nil {
+                VStack(spacing: NoterSpacing.sm) {
+                    AnimatedStatusBanner(bannerType)
 
                     // Queue option on error
                     if showQueueOption && !failedNoteText.isEmpty {
-                        HStack(spacing: 12) {
-                            Button(action: addToQueue) {
-                                Label("Add to Queue", systemImage: "tray.and.arrow.down")
-                                    .font(.system(size: 11, weight: .medium))
+                        HStack(spacing: NoterSpacing.md) {
+                            NoterButton("Add to Queue", icon: "tray.and.arrow.down", style: .secondary) {
+                                addToQueue()
                             }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
 
-                            Button(action: dismissQueueOption) {
-                                Text("Dismiss")
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.secondary)
+                            NoterButton("Dismiss", style: .tertiary) {
+                                dismissQueueOption()
                             }
-                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -177,14 +143,14 @@ struct NoteInputView: View {
                     removal: .opacity
                 ))
             }
-            
+
             // Collapsible output panel
             if showOutput {
                 OutputPanel(
                     outputText: outputText,
                     isLoading: isLoading,
                     onClear: {
-                        withAnimation(.easeInOut(duration: 0.2)) {
+                        withAnimation(.easeInOut(duration: NoterAnimation.normal)) {
                             outputText = ""
                             hasOutput = false
                             showOutput = false
@@ -196,15 +162,15 @@ struct NoteInputView: View {
                     removal: .opacity
                 ))
             }
-            
+
             Spacer(minLength: 0)
         }
-        .padding(16)
+        .padding(NoterSpacing.lg)
         .onAppear {
             isTextEditorFocused = true
         }
     }
-    
+
     private func cancelNote() {
         currentOperationHandle?.cancel()
         currentOperationHandle = nil
@@ -212,9 +178,8 @@ struct NoteInputView: View {
 
         outputText += "\n\n[Cancelled]"
 
-        withAnimation(.easeInOut(duration: 0.2)) {
-            showError = false
-            showSuccess = false
+        withAnimation(.easeInOut(duration: NoterAnimation.normal)) {
+            bannerType = nil
         }
     }
 
@@ -226,11 +191,11 @@ struct NoteInputView: View {
             vaultPath: vaultDirectory.path,
             model: model,
             opencodePath: opencodePath,
-            error: errorMessage
+            error: bannerType?.message ?? "Unknown error"
         )
 
-        withAnimation(.easeInOut(duration: 0.2)) {
-            showError = false
+        withAnimation(.easeInOut(duration: NoterAnimation.normal)) {
+            bannerType = nil
             showQueueOption = false
             failedNoteText = ""
             noteText = ""
@@ -238,7 +203,7 @@ struct NoteInputView: View {
     }
 
     private func dismissQueueOption() {
-        withAnimation(.easeInOut(duration: 0.2)) {
+        withAnimation(.easeInOut(duration: NoterAnimation.normal)) {
             showQueueOption = false
             failedNoteText = ""
         }
@@ -249,23 +214,20 @@ struct NoteInputView: View {
         if noteText.isEmpty {
             noteText = expandedText
         } else {
-            // Append to existing text
             noteText += (noteText.hasSuffix("\n") ? "" : "\n") + expandedText
         }
         isTextEditorFocused = true
     }
-    
+
     private func addNote() {
         guard !noteText.isEmpty else { return }
-        
+
         isLoading = true
         outputText = ""
-        showSuccess = false
-        showError = false
-        
-        // Capture note text before async work
+        bannerType = nil
+
         let noteToAdd = noteText
-        
+
         Task {
             let (stream, handle, _) = OpenCodeService.addNoteStreaming(
                 noteToAdd,
@@ -273,98 +235,66 @@ struct NoteInputView: View {
                 opencodePath: opencodePath,
                 model: model
             )
-            
+
             currentOperationHandle = handle
-            
+
             do {
-                // Stream chunks as they arrive
                 for try await chunk in stream {
                     outputText += chunk
                     if !hasOutput {
                         hasOutput = true
                     }
                 }
-                
-                // Stream completed successfully
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    showSuccess = true
+
+                // Success
+                withAnimation(.easeInOut(duration: NoterAnimation.normal)) {
+                    bannerType = .success("Added to daily note")
                 }
 
-                // Save to history
                 HistoryService.shared.addProcessedNote(
                     text: noteToAdd,
                     vaultPath: vaultDirectory.path,
                     outputPreview: String(outputText.prefix(100))
                 )
 
-                // Auto-dismiss success and clear text
-                try await Task.sleep(nanoseconds: 1_500_000_000)
+                // Unified auto-dismiss timing
+                try await Task.sleep(nanoseconds: NoterStatusTiming.autoDismiss)
 
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    showSuccess = false
+                withAnimation(.easeInOut(duration: NoterAnimation.normal)) {
+                    bannerType = nil
                 }
                 noteText = ""
-                
+
             } catch let error as OpenCodeService.OpenCodeError where error == .cancelled {
-                // Cancelled - don't show error, already handled in cancelNote()
+                // Cancelled - already handled
             } catch {
                 outputText += "\n\nError: \(error.localizedDescription)"
                 hasOutput = true
-                errorMessage = error.localizedDescription
                 failedNoteText = noteToAdd
 
-                // Save failed note to history
                 HistoryService.shared.addFailedNote(
                     text: noteToAdd,
                     vaultPath: vaultDirectory.path
                 )
 
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    showError = true
+                withAnimation(.easeInOut(duration: NoterAnimation.normal)) {
+                    bannerType = .error(error.localizedDescription)
                     showQueueOption = true
                 }
 
-                // Auto-dismiss error after longer delay (but keep queue option)
-                try? await Task.sleep(nanoseconds: 6_000_000_000)
+                // Unified auto-dismiss timing
+                try? await Task.sleep(nanoseconds: NoterStatusTiming.autoDismiss)
 
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    showError = false
+                withAnimation(.easeInOut(duration: NoterAnimation.normal)) {
+                    bannerType = nil
                     showQueueOption = false
                     failedNoteText = ""
                 }
             }
-            
+
             currentOperationHandle = nil
             isLoading = false
         }
-    }
-}
-
-// MARK: - Status Banner
-
-struct StatusBanner: View {
-    let isSuccess: Bool
-    let message: String
-    
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: isSuccess ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                .font(.system(size: 13))
-                .foregroundStyle(isSuccess ? .green : .red)
-            
-            Text(message)
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-            
-            Spacer()
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(isSuccess ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
-        )
     }
 }
 
@@ -374,70 +304,56 @@ struct OutputPanel: View {
     let outputText: String
     let isLoading: Bool
     let onClear: () -> Void
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Header
-            HStack {
-                Label("Output", systemImage: "terminal")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
-                
-                Spacer()
-                
-                if isLoading {
-                    HStack(spacing: 4) {
-                        ProgressView()
-                            .controlSize(.mini)
-                        Text("Streaming...")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.secondary)
+        NoterCard(padding: NoterSpacing.md) {
+            VStack(alignment: .leading, spacing: NoterSpacing.sm) {
+                // Header
+                HStack {
+                    Label("Output", systemImage: "terminal")
+                        .font(NoterTypography.captionMedium)
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    if isLoading {
+                        HStack(spacing: NoterSpacing.xs) {
+                            ProgressView()
+                                .controlSize(.mini)
+                            Text("Streaming...")
+                                .font(NoterTypography.captionSmall)
+                                .foregroundStyle(.secondary)
+                        }
+                    } else if !outputText.isEmpty {
+                        NoterButton("Clear", style: .tertiary) {
+                            onClear()
+                        }
                     }
-                } else if !outputText.isEmpty {
-                    Button(action: onClear) {
-                        Text("Clear")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(.secondary)
+                }
+
+                // Output content with auto-scroll
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        Text(outputText.isEmpty ? "No output yet" : outputText)
+                            .font(NoterTypography.mono)
+                            .foregroundStyle(outputText.isEmpty ? .tertiary : .secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .textSelection(.enabled)
+                            .lineSpacing(2)
+
+                        Color.clear
+                            .frame(height: 1)
+                            .id("bottom")
                     }
-                    .buttonStyle(.plain)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color.primary.opacity(0.05))
-                    .cornerRadius(4)
-                }
-            }
-            
-            // Output content with auto-scroll
-            ScrollViewReader { proxy in
-                ScrollView {
-                    Text(outputText.isEmpty ? "No output yet" : outputText)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(outputText.isEmpty ? .tertiary : .secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .textSelection(.enabled)
-                        .lineSpacing(2)
-                    
-                    // Invisible anchor at the bottom for auto-scrolling
-                    Color.clear
-                        .frame(height: 1)
-                        .id("bottom")
-                }
-                .frame(maxHeight: 120)
-                .onChange(of: outputText) { _, _ in
-                    // Auto-scroll to bottom when new content arrives
-                    withAnimation(.easeOut(duration: 0.1)) {
-                        proxy.scrollTo("bottom", anchor: .bottom)
+                    .frame(maxHeight: 120)
+                    .onChange(of: outputText) { _, _ in
+                        withAnimation(.easeOut(duration: 0.1)) {
+                            proxy.scrollTo("bottom", anchor: .bottom)
+                        }
                     }
                 }
             }
         }
-        .padding(12)
-        .background(Color.primary.opacity(0.03))
-        .cornerRadius(8)
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
-        )
     }
 }
 

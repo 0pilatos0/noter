@@ -15,41 +15,35 @@ struct QueueListView: View {
             // Header
             HStack {
                 Text("Queued Notes")
-                    .font(.system(size: 13, weight: .medium))
+                    .font(NoterTypography.sectionHeader)
                     .foregroundStyle(.primary)
 
                 Spacer()
 
                 if isProcessing {
-                    HStack(spacing: 4) {
+                    HStack(spacing: NoterSpacing.xs) {
                         ProgressView()
                             .controlSize(.mini)
                         Text("Processing...")
-                            .font(.system(size: 10))
+                            .font(NoterTypography.captionSmall)
                             .foregroundStyle(.secondary)
                     }
                 } else if !items.isEmpty {
-                    HStack(spacing: 8) {
-                        Button(action: retryAll) {
-                            Text("Retry All")
-                                .font(.system(size: 11))
+                    HStack(spacing: NoterSpacing.sm) {
+                        NoterButton("Retry All", style: .secondary) {
+                            retryAll()
                         }
-                        .buttonStyle(.bordered)
-                        .controlSize(.mini)
 
-                        Button(action: { showClearConfirmation = true }) {
-                            Text("Clear")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.red)
+                        NoterButton("Clear", style: .destructive) {
+                            showClearConfirmation = true
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.horizontal, NoterSpacing.lg)
+            .padding(.vertical, NoterSpacing.md)
 
-            Divider()
+            NoterDivider()
 
             // Content
             if isLoading {
@@ -58,20 +52,10 @@ struct QueueListView: View {
                     .scaleEffect(0.8)
                 Spacer()
             } else if items.isEmpty {
-                Spacer()
-                VStack(spacing: 12) {
-                    Image(systemName: "tray")
-                        .font(.system(size: 32))
-                        .foregroundStyle(.tertiary)
-
-                    Text("Queue is empty")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
-
-                    Text("Failed notes will appear here for retry")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.tertiary)
-                }
+                NoterEmptyStateCompact(
+                    icon: "tray",
+                    message: "Queue is empty"
+                )
                 Spacer()
             } else {
                 ScrollView {
@@ -84,12 +68,11 @@ struct QueueListView: View {
                             )
 
                             if item.id != items.last?.id {
-                                Divider()
-                                    .padding(.horizontal, 12)
+                                NoterDivider(inset: NoterSpacing.md)
                             }
                         }
                     }
-                    .padding(.vertical, 4)
+                    .padding(.vertical, NoterSpacing.xs)
                 }
             }
         }
@@ -174,107 +157,104 @@ struct QueueItemRow: View {
     @State private var isExpanded = false
     @State private var isHovered = false
 
+    private var isExpandable: Bool {
+        item.text.count > 50 || item.lastError != nil
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Main row
-            HStack(alignment: .top, spacing: 10) {
-                // Status icon
-                Image(systemName: item.canRetry ? "clock.fill" : "xmark.circle.fill")
-                    .font(.system(size: 12))
-                    .foregroundStyle(item.canRetry ? .orange : .red)
-                    .frame(width: 16)
+            HStack(alignment: .top, spacing: NoterSpacing.sm + NoterSpacing.xxs) {
+                // Status icon with shape differentiation
+                StatusIndicator(item.canRetry ? .pending : .error, size: NoterIconSize.sm)
+                    .frame(width: NoterSpacing.lg)
 
                 // Content
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: NoterSpacing.xs) {
                     Text(item.truncatedText)
-                        .font(.system(size: 12))
+                        .font(NoterTypography.body)
                         .foregroundStyle(.primary)
                         .lineLimit(isExpanded ? nil : 2)
 
-                    HStack(spacing: 8) {
+                    HStack(spacing: NoterSpacing.sm) {
                         Text(item.displayDate)
-                            .font(.system(size: 10))
+                            .font(NoterTypography.captionSmall)
                             .foregroundStyle(.tertiary)
 
                         Text(item.retryStatusText)
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(item.canRetry ? .orange : .red)
+                            .font(.system(size: NoterIconSize.xs, weight: .medium))
+                            .foregroundStyle(item.canRetry ? NoterColors.Status.warning : NoterColors.Status.error)
                     }
                 }
 
                 Spacer()
 
+                // Actions - always visible for accessibility
+                HStack(spacing: NoterSpacing.xs) {
+                    NoterIconButton(icon: "trash", style: .destructive, help: "Remove from queue") {
+                        onDelete()
+                    }
+                }
+                .alwaysVisibleActions(isHovered: isHovered, isExpanded: isExpanded)
+
                 // Expand indicator
-                if item.text.count > 50 || item.lastError != nil {
+                if isExpandable {
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 10))
+                        .font(.system(size: NoterIconSize.xs))
                         .foregroundStyle(.tertiary)
                 }
             }
-            .padding(.vertical, 10)
-            .padding(.horizontal, 12)
+            .padding(.vertical, NoterSpacing.sm + NoterSpacing.xxs)
+            .padding(.horizontal, NoterSpacing.md)
             .contentShape(Rectangle())
             .onTapGesture {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isExpanded.toggle()
+                if isExpandable {
+                    withAnimation(.easeInOut(duration: NoterAnimation.normal)) {
+                        isExpanded.toggle()
+                    }
                 }
             }
 
             // Expanded content
             if isExpanded {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: NoterSpacing.sm) {
                     // Full text
                     Text(item.text)
-                        .font(.system(size: 11))
+                        .font(NoterTypography.caption)
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
+                        .padding(NoterSpacing.md)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.primary.opacity(0.03))
-                        .cornerRadius(6)
+                        .background(NoterColors.surfaceSubtle)
+                        .cornerRadius(NoterRadius.md)
 
                     // Error message
                     if let error = item.lastError {
-                        HStack(spacing: 6) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .font(.system(size: 10))
-                                .foregroundStyle(.red)
+                        HStack(spacing: NoterSpacing.xs + NoterSpacing.xxs) {
+                            StatusIndicator(.error, size: NoterIconSize.xs)
                             Text(error)
-                                .font(.system(size: 10))
+                                .font(NoterTypography.captionSmall)
                                 .foregroundStyle(.secondary)
                         }
-                        .padding(.horizontal, 12)
                     }
 
                     // Actions
-                    HStack(spacing: 12) {
+                    HStack(spacing: NoterSpacing.md) {
                         if item.canRetry {
-                            Button(action: onRetry) {
-                                Label("Retry", systemImage: "arrow.clockwise")
-                                    .font(.system(size: 11))
+                            NoterButton("Retry", icon: "arrow.clockwise", style: .secondary) {
+                                onRetry()
                             }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
                         }
 
                         Spacer()
-
-                        Button(action: onDelete) {
-                            Image(systemName: "trash")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.red)
-                        }
-                        .buttonStyle(.plain)
-                        .help("Remove from queue")
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 10)
                 }
+                .padding(.horizontal, NoterSpacing.md)
+                .padding(.bottom, NoterSpacing.sm + NoterSpacing.xxs)
             }
         }
-        .background(isHovered ? Color.primary.opacity(0.03) : Color.clear)
-        .cornerRadius(8)
+        .background(isHovered ? NoterColors.surfaceSubtle : Color.clear)
+        .cornerRadius(NoterRadius.lg)
         .onHover { hovering in
             isHovered = hovering
         }

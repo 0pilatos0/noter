@@ -7,45 +7,46 @@ struct TemplateEditorView: View {
     let onCancel: () -> Void
 
     @State private var showIconPicker = false
+    @FocusState private var isTemplateEditorFocused: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: NoterSpacing.lg) {
             // Header
             HStack {
                 Text(isNew ? "New Template" : "Edit Template")
-                    .font(.system(size: 13, weight: .medium))
+                    .font(NoterTypography.sectionHeader)
                 Spacer()
             }
 
             // Name field
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: NoterSpacing.xs) {
                 Text("Name")
-                    .font(.system(size: 11))
+                    .font(NoterTypography.caption)
                     .foregroundStyle(.secondary)
                 TextField("Template name", text: $template.name)
                     .textFieldStyle(.roundedBorder)
-                    .font(.system(size: 12))
+                    .font(NoterTypography.body)
             }
 
             // Icon and Color row
-            HStack(spacing: 16) {
+            HStack(spacing: NoterSpacing.lg) {
                 // Icon picker
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: NoterSpacing.xs) {
                     Text("Icon")
-                        .font(.system(size: 11))
+                        .font(NoterTypography.caption)
                         .foregroundStyle(.secondary)
 
                     Button(action: { showIconPicker.toggle() }) {
-                        HStack(spacing: 6) {
+                        HStack(spacing: NoterSpacing.xs + NoterSpacing.xxs) {
                             Image(systemName: template.icon)
-                                .font(.system(size: 14))
+                                .font(.system(size: NoterIconSize.md))
                             Image(systemName: "chevron.down")
-                                .font(.system(size: 8))
+                                .font(.system(size: NoterIconSize.xs - 2))
                         }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(Color.primary.opacity(0.05))
-                        .cornerRadius(6)
+                        .padding(.horizontal, NoterSpacing.sm + NoterSpacing.xxs)
+                        .padding(.vertical, NoterSpacing.xs + NoterSpacing.xxs)
+                        .background(NoterColors.surfaceLight)
+                        .cornerRadius(NoterRadius.md)
                     }
                     .buttonStyle(.plain)
                     .popover(isPresented: $showIconPicker) {
@@ -54,17 +55,17 @@ struct TemplateEditorView: View {
                 }
 
                 // Color picker
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: NoterSpacing.xs) {
                     Text("Color")
-                        .font(.system(size: 11))
+                        .font(NoterTypography.caption)
                         .foregroundStyle(.secondary)
 
                     Picker("", selection: $template.color) {
                         ForEach(NoteTemplate.availableColors, id: \.self) { color in
                             HStack {
                                 Circle()
-                                    .fill(colorForName(color))
-                                    .frame(width: 12, height: 12)
+                                    .fill(NoterTemplateColor.from(color))
+                                    .frame(width: NoterSpacing.md, height: NoterSpacing.md)
                                 Text(color.capitalized)
                             }
                             .tag(color)
@@ -79,10 +80,10 @@ struct TemplateEditorView: View {
             }
 
             // Template content
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: NoterSpacing.xs) {
                 HStack {
                     Text("Template")
-                        .font(.system(size: 11))
+                        .font(NoterTypography.caption)
                         .foregroundStyle(.secondary)
 
                     Spacer()
@@ -102,62 +103,49 @@ struct TemplateEditorView: View {
                         }
                     } label: {
                         Label("Insert Variable", systemImage: "plus.circle")
-                            .font(.system(size: 10))
+                            .font(NoterTypography.captionSmall)
                     }
                     .menuStyle(.borderlessButton)
                     .fixedSize()
                 }
 
                 TextEditor(text: $template.template)
-                    .font(.system(size: 11, design: .monospaced))
+                    .font(NoterTypography.mono)
                     .frame(minHeight: 80, maxHeight: 120)
-                    .padding(8)
-                    .background(Color.primary.opacity(0.03))
-                    .cornerRadius(6)
+                    .padding(NoterSpacing.sm)
+                    .background(NoterColors.surfaceSubtle)
+                    .cornerRadius(NoterRadius.md)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(Color.primary.opacity(0.1), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: NoterRadius.md)
+                            .stroke(NoterColors.strokeSubtle, lineWidth: 1)
                     )
+                    .focused($isTemplateEditorFocused)
+                    .focusRing(isFocused: isTemplateEditorFocused, cornerRadius: NoterRadius.md)
             }
 
             // Show in quick actions toggle
             Toggle(isOn: $template.showInQuickActions) {
                 Text("Show in Quick Actions")
-                    .font(.system(size: 12))
+                    .font(NoterTypography.body)
             }
             .toggleStyle(.switch)
             .controlSize(.small)
 
             // Actions
             HStack {
-                Button("Cancel", action: onCancel)
-                    .buttonStyle(.plain)
+                NoterButton("Cancel", style: .tertiary) {
+                    onCancel()
+                }
 
                 Spacer()
 
-                Button("Save", action: onSave)
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .disabled(template.name.isEmpty)
+                NoterButton("Save", style: .primary, isDisabled: template.name.isEmpty) {
+                    onSave()
+                }
             }
         }
-        .padding(16)
+        .padding(NoterSpacing.lg)
         .frame(width: 300)
-    }
-
-    private func colorForName(_ name: String) -> Color {
-        switch name {
-        case "blue": return .blue
-        case "purple": return .purple
-        case "green": return .green
-        case "orange": return .orange
-        case "red": return .red
-        case "yellow": return .yellow
-        case "gray": return .gray
-        case "pink": return .pink
-        case "teal": return .teal
-        default: return .blue
-        }
     }
 }
 
@@ -181,28 +169,28 @@ struct IconPickerView: View {
     ]
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: NoterSpacing.sm) {
             Text("Choose Icon")
-                .font(.system(size: 11, weight: .medium))
+                .font(NoterTypography.captionMedium)
                 .foregroundStyle(.secondary)
 
-            LazyVGrid(columns: Array(repeating: GridItem(.fixed(32)), count: 6), spacing: 8) {
+            LazyVGrid(columns: Array(repeating: GridItem(.fixed(32)), count: 6), spacing: NoterSpacing.sm) {
                 ForEach(icons, id: \.self) { icon in
                     Button(action: {
                         selectedIcon = icon
                         dismiss()
                     }) {
                         Image(systemName: icon)
-                            .font(.system(size: 14))
+                            .font(.system(size: NoterIconSize.md))
                             .frame(width: 28, height: 28)
                             .background(selectedIcon == icon ? Color.accentColor.opacity(0.2) : Color.clear)
-                            .cornerRadius(4)
+                            .cornerRadius(NoterRadius.sm)
                     }
                     .buttonStyle(.plain)
                 }
             }
         }
-        .padding(12)
+        .padding(NoterSpacing.md)
     }
 }
 
